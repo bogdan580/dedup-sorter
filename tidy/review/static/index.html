@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dedup sorter</title>
+<style>
+/*@inline css/app.css*/
+</style>
+</head>
+<body>
+<!-- Unlabeled dev-mode switch, bottom-left, present on every tab --
+     unchecked by default so the raw JSON/undo panel (#result) stays out of
+     normal use and only appears once someone who knows the control is
+     there turns it on. -->
+<input type="checkbox" id="dev-mode-toggle" data-i18n-title="dev_mode" data-i18n-aria="dev_mode" title="Developer mode" aria-label="Developer mode">
+<div class="topbar">
+  <div class="header-row">
+    <h1 data-i18n="title_main">Dedup sorter</h1>
+    <div class="tabs">
+      <button class="tab active" data-tab="dup" data-i18n="tab_dup">Exact duplicates</button>
+      <button class="tab" data-tab="series" data-i18n="tab_series">Series and similar</button>
+      <button class="tab" data-tab="placement" data-i18n="tab_placement">Grouping suggestions</button>
+      <button class="tab" data-tab="compress" data-i18n="tab_compress">Compression suggestion</button>
+      <!-- "Restore" is read-only until a "Restore this batch" click, so it needs neither the
+           apply bar nor the pager -- updateScreenVisibility() hides both for
+           this tab alone. -->
+      <button class="tab" data-tab="restore" data-i18n="tab_restore">Restore</button>
+    </div>
+    <!-- One button rather than three: a rescan re-walks the archive and
+         resets every tab, so putting a copy on each would suggest three
+         independent refreshes and hide that the other two just went stale
+         too. Not a .tab -- it triggers an action, not a screen switch, so it
+         sits next to the tab bar rather than inside it. -->
+    <div class="header-actions" style="margin-left: auto; display: flex; align-items: center; gap: var(--sp-3);">
+        <button id="theme-toggle" type="button" style="background: transparent; border: none; font-size: 1.5rem; padding: 0 5px; cursor: pointer;"></button>
+        <button id="rescan-btn" data-i18n-title="btn_rescan_title" data-i18n="btn_rescan" title="Rescan disk and recalculate all tabs">Rescan</button>
+      </div>
+  </div>
+  <div id="rescan-status" class="hint"></div>
+  <div class="toolbar">
+    <!-- Source-directory picker, shared by the placement and compress tabs
+         (same mechanism, same two server-side gates: docs/technical/components/review-ui.md).
+         Options come from GET /api/source-dirs; the client submits the
+         chosen `rel` string, never a path it composed itself, and the
+         server re-validates it against its own directory index either way.
+         Which tab's own source (state.placementSource/state.compressSource)
+         the selected option reflects is decided by renderSourceDirSelect(). -->
+    <div class="controls" id="source-controls" style="display:none">
+      <label><span data-i18n="lbl_source_dir">Source directory:</span>
+        <select id="source-dir"></select>
+      </label>
+      <span id="source-hint" class="hint"></span>
+    </div>
+    <!-- Compress settings (makeCompressActionPanel()), filled by
+         renderCompressScreen(): lives in the sticky .topbar so "Compress"
+         and the queue progress stay reachable over a long candidate list. -->
+    <div class="controls" id="compress-action-slot" style="display:none"></div>
+    <!-- Detection tuning, visible only on the series tab -- the two thresholds
+         do nothing on any other tab.
+         <option>s are built in JS (buildTuningSelect()) from the value in force,
+         which arrives with loadState(); nothing here hardcodes an engine
+         default. Changing a value NEVER fetches: it only takes effect on the
+         next Rescan, and #series-tuning-hint says so. -->
+    <div class="controls" id="series-tuning" style="display:none">
+      <label><span data-i18n="lbl_sim_threshold">Similarity threshold:</span>
+        <select id="series-hamming"></select>
+      </label>
+      <label><span data-i18n="lbl_series_window">Series time window:</span> <button type="button" class="tooltip" aria-expanded="false">[?]<span class="tooltip-bubble" role="tooltip" data-i18n="js_tooltip_win"></span></button>
+        <select id="series-window"></select>
+      </label>
+      <span id="series-tuning-hint" class="hint"></span>
+    </div>
+    <!-- Skip is persisted server-side; unchecking a revealed group here deletes
+         the stored decision. See docs/business/rules/events-and-series.md. -->
+    <div class="controls" id="series-controls" style="display:none">
+      <label><input type="checkbox" id="show-skipped-series"> <span id="show-skipped-label" data-i18n="js_show_skipped_groups"></span></label>
+    </div>
+    <div class="controls" id="placement-controls" style="display:none">
+      <label><input type="checkbox" id="show-skipped-placement"> <span id="show-skipped-placement-label" data-i18n="js_show_skipped_sugg"></span></label>
+    </div>
+    <div class="controls" id="compress-controls" style="display:none">
+      <label><input type="checkbox" id="show-skipped-compress"> <span id="show-skipped-compress-label" data-i18n="js_show_skipped_comp"></span></label>
+    </div>
+    <!-- View controls and the tab's action buttons, one right-aligned unit
+         that wraps as a whole so it never splits across lines. -->
+    <div class="toolbar-right">
+      <div class="controls apply-controls" id="top-apply-controls">
+        <span id="summary" class="hint"></span>
+        <button id="apply-page-btn" class="apply-btn" data-i18n="btn_apply_page">Apply current page</button>
+        <button id="apply-all-btn" class="apply-btn" data-i18n="btn_apply_all">Apply all</button>
+      </div>
+      <!-- Compress tab's own action buttons (makeCompressActionPanel()), in
+           the place the shared apply pair takes on the other tabs. -->
+      <div class="controls" id="compress-apply-slot" style="display:none"></div>
+    </div>
+    <!-- Compress queue progress / totals, a full-width line under the bar. -->
+    <div id="compress-progress-slot" style="display:none"></div>
+  </div>
+</div>
+<main>
+  <div id="dup-screen"></div>
+  <!-- Separate containers per screen, never the dup-screen grid reused for a
+       different data shape. Exactly one is visible at a time (style.display,
+       toggled by updateScreenVisibility()); the others stay in the DOM. -->
+  <div id="series-screen" style="display:none"></div>
+  <div id="placement-screen" style="display:none"></div>
+  <div id="compress-screen" style="display:none"></div>
+  <div id="restore-screen" style="display:none"></div>
+</main>
+<!-- Present on every tab: view controls on top, pager below them. Each
+     control's own visibility is per tab (updateScreenVisibility()), toggled
+     via style.display so per-screen state survives a tab switch. -->
+<div class="bar" id="bottom-bar">
+    <button id="scroll-top-btn" type="button" class="minimal-btn" data-i18n-title="btn_scroll_top" data-i18n="btn_scroll_top_lbl" title="Scroll to top" style="margin:0;">&#8593; Top</button>
+    <div class="bottom-right">
+    <div class="view-controls">
+      <!-- Deliberately OUTSIDE #page-controls (which hides on tabs without a
+           pager) -- zoom stays visible on every tab. -->
+      <div class="controls" id="thumb-controls">
+        <label><span data-i18n="lbl_thumb_size">Thumbnail size:</span>
+          <select id="thumb-zoom">
+            <option value="1">1x</option>
+            <option value="2" selected>2x</option>
+            <option value="3">3x</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls" id="page-controls">
+        <label><span data-i18n="lbl_page_size">Page size:</span>
+          <select id="page-size">
+            <option value="20">20</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+      </div>
+      <!-- "Columns" lives outside #page-controls (unlike page-size/pager) so it
+           stays visible on the compress tab too: that tab has no pages to
+           size or page through, but lays its candidate cards out in the same
+           --cols grid as the other three screens (updateScreenVisibility()). -->
+      <div class="controls" id="columns-controls">
+        <label><span data-i18n="lbl_cols">Columns:</span>
+          <select id="columns">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <span class="pager" id="bottom-pager">
+      <button id="first-page" data-i18n="btn_first" class="minimal-btn">&laquo;&laquo; First</button>
+      <button id="prev-page" data-i18n="btn_prev" class="minimal-btn">&laquo; Previous</button>
+      <span id="page-indicator" style="font-weight: bold; font-size: 0.9rem;"></span>
+      <button id="next-page" data-i18n="btn_next" class="minimal-btn">Next &raquo;</button>
+      <button id="last-page" data-i18n="btn_last" class="minimal-btn">Last &raquo;&raquo;</button>
+    </span>
+    </div>
+  </div>
+<div id="result"></div>
+<script>
+window.I18N = __DEDUP_I18N__;
+//@inline js/common.js
+//@inline js/cards.js
+//@inline js/dup.js
+//@inline js/tuning.js
+//@inline js/screens.js
+//@inline js/skips.js
+//@inline js/series.js
+//@inline js/placement.js
+//@inline js/compress.js
+//@inline js/main.js
+//@inline js/restore.js
+//@inline js/listeners.js
+//@inline js/hotkeys.js
+</script>
+</body>
+</html>

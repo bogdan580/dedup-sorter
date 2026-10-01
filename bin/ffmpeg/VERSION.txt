@@ -1,0 +1,27 @@
+ffmpeg build pinned for this project -- source-of-truth: docs/technical/components/compression-mechanism.md
+The binaries are NOT in git: tools/fetch-ffmpeg.ps1 (called by run.cmd / run.ps1 / run.sh)
+downloads the pinned build, verifies the SHA-256 sums below and places ffmpeg.exe / ffprobe.exe here.
+
+Build:     ffmpeg-N-127021-ge0c94b2d1c-win64-gpl.zip (static, GPLv3)
+Publisher: BtbN/FFmpeg-Builds (https://github.com/BtbN/FFmpeg-Builds)
+Release:   autobuild-2026-09-30-13-08 (month-end build, kept long-term by BtbN)
+Version:   N-127021-ge0c94b2d1c-20260930
+
+Pinned URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-N-127021-ge0c94b2d1c-win64-gpl.zip
+Pinned zip SHA-256: 85c4a4636b93d681a07588ffa6f1d8f5c064d9c3fb0622066662906b6fd718a1
+Fallback URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip
+
+SHA-256 (extracted binaries):
+  ffmpeg.exe   c0d7aae4c127e1662fcd5b802e66ac599bf629cf317035c5f440dfe4c14c0769
+  ffprobe.exe  775805c5b06fdf2c0a9da6c45aebb026be028cdf6569eca378d1cd9eec3bcfd0
+
+Codecs confirmed present (ffmpeg -encoders):
+  libx265, libsvtav1, hevc_nvenc, av1_nvenc, hevc_qsv, av1_qsv
+
+License: GPL v3 (see LICENSE in this directory). Static build, so it also
+bundles LGPL/BSD/MIT-licensed third-party libraries; full attribution is
+in LICENSE. Corresponding source: https://github.com/BtbN/FFmpeg-Builds
+
+To update: pick a newer month-end autobuild release, rewrite "Pinned URL",
+"Pinned zip SHA-256" and both binary sums above, replace LICENSE with the
+archive's LICENSE.txt, run the test suite, commit alone.

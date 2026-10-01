@@ -1,0 +1,30 @@
+# Runtime dependencies for .dedup. Rules: docs/technical/dependencies.md
+#
+# Install with:
+#   python -m pip install -r requirements.txt
+
+# Core image decoding -- used directly by thumbnails.py, dhash.py,
+# sharpness.py, timeline.py, gps.py and series.py. Required.
+Pillow==12.3.0
+
+# HEIC/HEIF decoding, plugged into Pillow's own Image.open() via
+# pillow_heif.register_heif_opener() (called once, at thumbnails.py import
+# time). Required for .HEIC files to be visible to thumbnails, series and
+# events.
+pillow-heif==1.5.0
+
+# Perceptual hashing (dhash.py) and sharpness/Laplacian-variance
+# measurement (sharpness.py). Required.
+numpy==2.2.6
+
+# Bundles a real ffmpeg binary, used by thumbnails.py to extract a
+# representative frame from video sources.
+# Required for video thumbnails; JPG/PNG/HEIC image thumbnails work
+# without it.
+imageio-ffmpeg==0.6.0
+
+# Offline reverse geocoding (GeoNames data bundled in the pip package, no
+# network access) for event place names (events.py).
+# Optional: events.py catches ImportError at import time and simply
+# produces events without place names when this isn't installed.
+reverse-geocoder==1.5.1

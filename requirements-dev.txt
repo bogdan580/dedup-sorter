@@ -1,0 +1,20 @@
+# Development dependencies for .dedup -- everything needed to RUN THE TESTS,
+# on top of what the tool itself needs at runtime.
+#
+# Install with:
+#   python -m pip install -r requirements-dev.txt
+#
+# Why a second file: requirements.txt is deliberately runtime-only (it is
+# what a user who just wants to run dedup.py needs). Without this file a
+# fresh clone installs cleanly and the tool works, but `python -m pytest`
+# fails with "No module named pytest" in a clean venv, so the test suite
+# could not be reproduced from the repository alone. Nothing here is imported by the tool at runtime.
+
+# Pulls in the runtime dependencies too, so this one file is enough to set
+# up a working development environment from scratch.
+-r requirements.txt
+
+# Test runner. The suite (tests/) imports only the standard library, this
+# project's own modules, and pytest itself -- no pytest plugins are used,
+# so this stays a single pin. pytest.ini holds the (minimal) config.
+pytest==9.1.1

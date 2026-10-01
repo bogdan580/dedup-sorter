@@ -1,0 +1,15 @@
+{
+  "ui_language": "en",
+  "priority_dirs": [
+    "#Travel",
+    "#Family"
+  ],
+  "copy_name_patterns": [
+    "(1)",
+    "(2)",
+    "- kopia",
+    "_1",
+    "- Copy"
+  ],
+  "report_top_n": 20
+}

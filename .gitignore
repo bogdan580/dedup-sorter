@@ -1,0 +1,44 @@
+# Runtime artefacts -- generated, not source code.
+# Everything the tool generates lives in dot-directories (.db, .reports,
+# .thumbs, ...) -- one entry per directory instead of individual file names.
+.db/
+.reports/
+.thumbs/
+.tests/
+.compress/
+
+# Legacy names from before the move to dot-directories -- kept so that
+# artefacts produced by an older version of the tool never end up in a
+# commit on a machine that has not cleaned them up yet.
+cache.sqlite3
+raport*.csv
+raport*.html
+thumbs/
+
+# User-specific configuration; config.example.json is the tracked template.
+config.json
+
+# ffmpeg binaries are fetched by tools/fetch-ffmpeg.ps1 (run.cmd / run.ps1 / run.sh);
+# only VERSION.txt and LICENSE are versioned.
+bin/ffmpeg/*.exe
+bin/ffmpeg/INSTALLED.txt
+
+# Developer tools.
+.coverage
+.pytest_cache/
+htmlcov/
+**/__pycache__/
+*.pyc
+*.tmp
+.obsidian/
+.claude-flow/
+.claude/
+*.log
+*.stackdump
+test_av1_crf30.mp4
+test_kadr_0_zrodlo.png
+test_kadr_1_x265.png
+test_kadr_2_av1.png
+test_porownanie_1do1.png
+test_x265_crf21.mp4
+test.mp4
