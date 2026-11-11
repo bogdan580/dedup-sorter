@@ -25,9 +25,7 @@ function render() {
       return;
     }
 
-    const groups = state.data.groups;
-
-    if (groups.length === 0) {
+    if (state.data.groups.length === 0) {
       const empty = document.createElement("div");
       empty.className = "placeholder-screen";
       empty.textContent = i18n("js_dup_empty");
@@ -36,14 +34,25 @@ function render() {
       return;
     }
 
+    const groups = visibleDupGroups();
+    if (groups.length === 0) {
+      // Everything found is already skipped -- say so rather than "no duplicates".
+      screen.appendChild(makeStatusMessage(
+        i18n("js_all_dup_skipped_1") + state.data.groups.length + i18n("js_all_dup_skipped_2") +
+        i18n("js_tick_show_skipped_grp"),
+      ));
+      disablePagerControls();
+      return;
+    }
+
     updatePagerControls(groups);
     const pageGroups = currentPageGroups(groups);
 
     for (const g of pageGroups) {
-      const sel = state.selection[g.group_id] || { keeperId: g.keeper.id, excludedIds: new Set(), skip: false };
+      const sel = state.selection[g.group_id] || { keeperId: g.keeper.id, excludedIds: new Set(), skip: !!g.skipped };
 
       const card_group = document.createElement("div");
-      card_group.className = "group" + (g.applied ? " applied" : "");
+      card_group.className = "group" + (g.applied ? " applied" : "") + (g.skipped ? " skipped" : "");
 
       const groupBar = document.createElement("div");
       groupBar.className = "group-bar";
@@ -71,22 +80,10 @@ function render() {
         rotateGroupBtn.addEventListener("click", () => rotateGroupThumbs([g.thumb_id]));
         groupBar.appendChild(rotateGroupBtn);
       }
-      // Right side: the skip toggle, after the rotate button so
+      // Right side: the persisted skip toggle, after the rotate button so
       // .rotate-group-btn's margin-left: auto pushes both into one
       // right-aligned action cluster.
-      const skipLabel = document.createElement("label");
-      skipLabel.className = "skip-toggle";
-      const skipCheckbox = document.createElement("input");
-      skipCheckbox.type = "checkbox";
-      skipCheckbox.className = "skip-group-checkbox";
-      skipCheckbox.checked = sel.skip;
-      skipCheckbox.addEventListener("change", (e) => {
-        sel.skip = e.target.checked;
-        render();
-      });
-      skipLabel.appendChild(skipCheckbox);
-      skipLabel.appendChild(document.createTextNode(i18n("js_skip_group")));
-      groupBar.appendChild(skipLabel);
+      groupBar.appendChild(makeDupSkipControl(g, sel));
       card_group.appendChild(groupBar);
 
       const row = document.createElement("div");

@@ -351,3 +351,104 @@ def _set_compress_skip(
         "persisted": persisted,
         "skipped_group_count": len(_skipped_compress_group_ids(state)),
     }, None
+
+
+# See: docs/technical/components/review-ui.md
+
+def _load_dup_skips(state: "ReviewState") -> None:
+    """Populate state.dup_skips from the cache DB, same timing/degradation as
+    _load_series_skips()."""
+    if not state.db_path:
+        return
+    try:
+        cache = Cache(state.db_path)
+    except Exception:  # noqa: BLE001 - a broken cache must not block the UI
+        return
+    try:
+        stored = cache.list_dup_skips()
+    except Exception:  # noqa: BLE001 - e.g. a DB from a future schema
+        return
+    finally:
+        cache.close()
+    with state.dup_skip_lock:
+        state.dup_skips = {key: frozenset(paths) for key, paths in stored}
+
+
+def _dup_group_member_paths(state: "ReviewState", group_id: str) -> List[str]:
+    """The real paths of one exact-duplicate group, read out of file_registry
+    only -- an id from another screen's registry is unknown here."""
+    return [
+        entry["path"]
+        for entry in state.file_registry.values()
+        if entry["group_id"] == group_id
+    ]
+
+
+def _skipped_dup_group_ids(state: "ReviewState") -> Set[str]:
+    """Which published duplicate groups are covered by a stored skip;
+    recomputed per GET /api/state."""
+    with state.dup_skip_lock:
+        stored = list(state.dup_skips.values())
+    if not stored:
+        return set()
+
+    paths_by_group: Dict[str, List[str]] = {}
+    for entry in state.file_registry.values():
+        paths_by_group.setdefault(entry["group_id"], []).append(entry["path"])
+
+    return {
+        group_id
+        for group_id, paths in paths_by_group.items()
+        if series.group_is_skipped(paths, stored)
+    }
+
+
+def _set_dup_skip(
+    state: "ReviewState", group_id: str, skip: bool
+) -> Tuple[Optional[dict], Optional[str]]:
+    """Record or clear the skip for one duplicate group, in memory AND in the
+    cache DB, or return an error message. Same contract as _set_series_skip()."""
+    paths = _dup_group_member_paths(state, group_id)
+    if not paths:
+        return None, f"unknown duplicate group_id: {group_id!r}"
+
+    normalized = series.normalize_member_paths(paths)
+    wanted = frozenset(normalized)
+
+    if skip:
+        key = series.skip_key(paths)
+        added, removed = {key: wanted}, []
+    else:
+        key = None
+        added = {}
+        with state.dup_skip_lock:
+            removed = [k for k, stored in state.dup_skips.items() if wanted <= stored]
+
+    persisted = False
+    if state.db_path:
+        try:
+            cache = Cache(state.db_path)
+            try:
+                if skip:
+                    cache.add_dup_skip(
+                        key, normalized, datetime.now(timezone.utc).isoformat(),
+                    )
+                else:
+                    cache.remove_dup_skips(removed)
+            finally:
+                cache.close()
+            persisted = True
+        except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+            return None, f"failed to save the decision in the database: {exc}"
+
+    with state.dup_skip_lock:
+        state.dup_skips.update(added)
+        for k in removed:
+            state.dup_skips.pop(k, None)
+
+    return {
+        "group_id": group_id,
+        "skipped": skip,
+        "persisted": persisted,
+        "skipped_group_count": len(_skipped_dup_group_ids(state)),
+    }, None

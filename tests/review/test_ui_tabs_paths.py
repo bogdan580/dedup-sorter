@@ -255,7 +255,7 @@ class TestGroupPathSegmentHighlighting:
             "/api/state", "/api/open", "/api/apply", "/api/series", "/api/apply-series",
             "/api/thumb/rotate", "/api/source-dirs", "/api/placement?source=",
             "/api/apply-placement", "/api/rescan", "/api/batches", "/api/restore",
-            "/api/batch-entries?batch_id=", "/api/series-skip", "/api/placement-skip",
+            "/api/batch-entries?batch_id=", "/api/dup-skip", "/api/series-skip", "/api/placement-skip",
             "/api/compress?source=", "/api/compress/encoders", "/api/compress/jobs",
             "/api/compress/skip", "/api/compress/cancel", "/api/apply-compress",
             "/api/apply-compress-remove", "/api/compress/calibrate",
@@ -831,8 +831,9 @@ class TestThreeTabsFrontendRunda2Krok4:
         # element, using the shared .skip-toggle class.
         html = self._html(running_server)
         render_body = self._function_body(html, "render")
-        assert re.search(r'skipLabel\.className\s*=\s*"skip-toggle"', render_body)
-        assert "groupBar.appendChild(skipLabel)" in render_body
+        assert re.search(r'groupBar\.appendChild\(makeDupSkipControl\(g,\s*sel\)\)', render_body)
+        dup_control = self._function_body(html, "makeDupSkipControl")
+        assert re.search(r'label\.className\s*=\s*"skip-toggle"', dup_control)
 
         series_body = self._function_body(html, "renderSeriesScreen")
         assert re.search(r'groupBar\.appendChild\(makeSeriesSkipControl\(g,\s*sel\)\)', series_body)

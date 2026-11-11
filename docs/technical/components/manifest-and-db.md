@@ -199,15 +199,16 @@ The date index is read for the **entire archive**, not just candidates of one
 run — it answers which directories already contain photos from given days.
 Therefore paying for decoding once is worth it.
 
-**`series_skips`**, **`placement_skips`**, and **`compress_skips`** — skipped items.
+**`series_skips`**, **`placement_skips`**, **`compress_skips`**, and **`dup_skips`** —
+skipped items (`dup_skips` holds the "Exact duplicates" tab's decisions).
 Each shaped as `group_key`, `paths`, `member_count`, `skipped_at`.
 
 The key is built **from group members**, because group number is just an index
 in a single run's result. Matching is by **subset**, not equality — rule and
 rationale: [events-and-series.md](../../business/rules/events-and-series.md).
 
-Separate tables instead of one because a series group, grouping suggestion,
-and compression candidate can legitimately cover the same files — a shared
+Separate tables instead of one because a duplicate group, series group, grouping
+suggestion, and compression candidate can legitimately cover the same files — a shared
 table would allow skipping one to hide another.
 
 **`compress_probes`** — video stream parameters: `path`, `size`, `mtime_ns`,

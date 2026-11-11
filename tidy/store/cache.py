@@ -75,6 +75,7 @@ class Cache:
         self._ensure_timestamp_schema()
         self._ensure_series_skip_schema()
         self._ensure_placement_skip_schema()
+        self._ensure_dup_skip_schema()
         self._ensure_compress_schema()
         self._reconcile_meta(hash_algo, partial_algo, dhash_algo, schema_version)
 
@@ -169,6 +170,20 @@ class Cache:
         self._conn.execute(
             """
             CREATE TABLE IF NOT EXISTS placement_skips (
+                group_key TEXT PRIMARY KEY,
+                paths TEXT NOT NULL,
+                member_count INTEGER NOT NULL,
+                skipped_at TEXT NOT NULL
+            )
+            """
+        )
+
+    def _ensure_dup_skip_schema(self) -> None:
+        """The "Exact duplicates" tab's skip decisions, in their own table for
+        the same reason as `placement_skips`. See: docs/technical/components/manifest-and-db.md"""
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS dup_skips (
                 group_key TEXT PRIMARY KEY,
                 paths TEXT NOT NULL,
                 member_count INTEGER NOT NULL,
@@ -397,6 +412,43 @@ class Cache:
         placeholders = ", ".join("?" for _ in group_keys)
         cursor = self._conn.execute(
             f"DELETE FROM placement_skips WHERE group_key IN ({placeholders})",
+            tuple(group_keys),
+        )
+        return cursor.rowcount or 0
+
+    # -- duplicate-group skips (review UI's "Exact duplicates" tab) --------
+    #
+    # Same three-method shape and commit-immediately rule as the series trio.
+
+    def list_dup_skips(self) -> List[Tuple[str, Tuple[str, ...]]]:
+        """Every stored duplicate-group skip as (group_key, normalized member paths)."""
+        rows = self._conn.execute(
+            "SELECT group_key, paths FROM dup_skips"
+        ).fetchall()
+        return [
+            (row["group_key"], tuple(p for p in row["paths"].split("\n") if p))
+            for row in rows
+        ]
+
+    def add_dup_skip(
+        self, group_key: str, paths: Sequence[str], skipped_at: str
+    ) -> None:
+        """Record (or re-record) one skipped duplicate group; idempotent."""
+        self.commit()  # never nest inside an open scan batch
+        self._conn.execute(
+            "INSERT OR REPLACE INTO dup_skips "
+            "(group_key, paths, member_count, skipped_at) VALUES (?, ?, ?, ?)",
+            (group_key, "\n".join(paths), len(paths), skipped_at),
+        )
+
+    def remove_dup_skips(self, group_keys: Sequence[str]) -> int:
+        """Delete the named duplicate-group skips. Returns how many rows were deleted."""
+        if not group_keys:
+            return 0
+        self.commit()
+        placeholders = ", ".join("?" for _ in group_keys)
+        cursor = self._conn.execute(
+            f"DELETE FROM dup_skips WHERE group_key IN ({placeholders})",
             tuple(group_keys),
         )
         return cursor.rowcount or 0

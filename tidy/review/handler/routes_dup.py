@@ -9,6 +9,7 @@ from tidy import config
 from tidy.moves import applier
 from tidy.duplicates import report
 from tidy.review.computations import _invalidate_batch_cache, _register_batch
+from tidy.review.skips import _set_dup_skip
 from tidy.review.validation import _find_already_applied_group_id, _validate_selections
 
 
@@ -156,3 +157,36 @@ def handle_apply(handler, state, body: bytes) -> None:
         state.applied_batches.append(payload)
     _invalidate_batch_cache(state)
     handler._send_json(HTTPStatus.OK, payload)
+
+
+def handle_dup_skip(handler, state, body: bytes) -> None:
+    """POST /api/dup-skip {"group_id": "3", "skip": true}: persists the
+    decision, moves no files. See: docs/business/rules/duplicates.md"""
+    try:
+        payload_in = json.loads(body.decode("utf-8")) if body.strip() else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        handler._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid JSON body"})
+        return
+
+    if not isinstance(payload_in, dict):
+        handler._send_json(HTTPStatus.BAD_REQUEST, {"error": "body must be an object"})
+        return
+
+    group_id = payload_in.get("group_id")
+    skip = payload_in.get("skip")
+    if not isinstance(group_id, str) or not group_id:
+        handler._send_json(HTTPStatus.BAD_REQUEST, {"error": "group_id is required"})
+        return
+    if not isinstance(skip, bool):
+        handler._send_json(HTTPStatus.BAD_REQUEST, {"error": "skip must be true or false"})
+        return
+
+    payload_out, error = _set_dup_skip(state, group_id, skip)
+    if error is not None:
+        status = (
+            HTTPStatus.BAD_REQUEST if error.startswith("unknown")
+            else HTTPStatus.INTERNAL_SERVER_ERROR
+        )
+        handler._send_json(status, {"error": error})
+        return
+    handler._send_json(HTTPStatus.OK, payload_out)

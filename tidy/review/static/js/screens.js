@@ -33,9 +33,17 @@ function updateScreenVisibility() {
   ["compress-action-slot", "compress-apply-slot", "compress-progress-slot"].forEach((id) => {
     document.getElementById(id).style.display = state.tab === "compress" ? "" : "none";
   });
-  // i18n("js_show_skipped_groups") is series-only -- "pomin" is persisted for
-  // series groups alone, so offering the toggle on a tab where nothing can
-  // be hidden would just be a dead control.
+  // Each tab with a persisted "pomin" has its own "show skipped" toggle,
+  // shown only on that tab.
+  document.getElementById("dup-controls").style.display =
+    state.tab === "dup" ? "" : "none";
+  const skippedDupLabel = document.getElementById("show-skipped-dup-label");
+  if (skippedDupLabel) {
+    const hidden = skippedDupCount();
+    skippedDupLabel.textContent = hidden > 0
+      ? i18n("js_show_skipped_groups") + " (" + hidden + ")"
+      : i18n("js_show_skipped_groups");
+  }
   document.getElementById("series-controls").style.display =
     state.tab === "series" ? "" : "none";
   const skippedLabel = document.getElementById("show-skipped-label");
@@ -85,7 +93,10 @@ function updateApplyButtonsEnabled() {
   const pageBtn = document.getElementById("apply-page-btn");
   let disable = true;
   if (state.tab === "dup") {
-    disable = !state.data || state.data.all_applied || state.data.group_count === 0;
+    // visibleDupGroups(), same reasoning as the series branch below.
+    const groups = visibleDupGroups();
+    disable = !state.data || state.data.all_applied || groups.length === 0 ||
+      groups.every((g) => g.applied || g.skipped);
   } else if (state.tab === "series") {
     // visibleSeriesGroups(), not the raw list: a scan where every group is
     // already skipped has nothing left to apply, and an enabled button that

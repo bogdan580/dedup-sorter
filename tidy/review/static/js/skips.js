@@ -188,3 +188,59 @@ function makeSeriesSkipControl(group, sel) {
   return label;
 }
 
+// The exact-duplicates screen's own "pomin", POST /api/dup-skip -- same
+// local-flag-after-server-confirms rule as toggleSeriesSkip().
+async function toggleDupSkip(group, wantSkip) {
+  let resp;
+  try {
+    resp = await fetch("/api/dup-skip", {
+      method: "POST",
+      headers: { "X-Dedup-Token": TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ group_id: group.group_id, skip: wantSkip }),
+    });
+  } catch (err) {
+    appendResult({ error: i18n("js_err_save_skip") + String(err) });
+    render();
+    return;
+  }
+  let body = null;
+  try {
+    body = await resp.json();
+  } catch (err) {
+    // Non-JSON body -- the status line below is all there is to report.
+  }
+  if (!resp.ok) {
+    appendResult({
+      error: i18n("js_err_save_skip") +
+        ((body && body.error) || ("HTTP " + resp.status)),
+    });
+    render();
+    return;
+  }
+  group.skipped = wantSkip;
+  const sel = state.selection[group.group_id];
+  if (sel) sel.skip = wantSkip;
+  if (body && body.persisted === false) {
+    appendResult({
+      error: i18n("js_warn_no_db"),
+    });
+  }
+  render();
+}
+
+// The dup group bar's "Skip this group" checkbox, same look as the series one.
+function makeDupSkipControl(group, sel) {
+  const label = document.createElement("label");
+  label.className = "skip-toggle";
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.className = "skip-group-checkbox";
+  box.checked = !!sel.skip;
+  box.addEventListener("change", (e) => {
+    toggleDupSkip(group, e.target.checked);
+  });
+  label.appendChild(document.createTextNode(i18n("js_skip_group_saved")));
+  label.appendChild(box);
+  return label;
+}
+

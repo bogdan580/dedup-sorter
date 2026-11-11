@@ -90,6 +90,8 @@ const state = {
   showSkippedSeries: false,
   // Same toggle, for the placement screen's own persisted skip.
   showSkippedPlacement: false,
+  // Same toggle, for the exact-duplicates screen's own persisted skip.
+  showSkippedDup: false,
   // Holds the OPEN accordion sections of the placement notes block (closed
   // is the default), keyed by a fixed section name rather than any id a
   // rescan could renumber, and never sent to the server.
@@ -219,8 +221,22 @@ function fmtSize(bytes) {
 function initSelection() {
   state.selection = {};
   for (const g of state.data.groups) {
-    state.selection[g.group_id] = { keeperId: g.keeper.id, excludedIds: new Set(), skip: false };
+    // skip comes from the server: the cache DB is the source of truth for it.
+    state.selection[g.group_id] = { keeperId: g.keeper.id, excludedIds: new Set(), skip: !!g.skipped };
   }
+}
+
+// The duplicate groups the dup tab shows -- skipped ones hidden unless "Show
+// skipped groups" is ticked. Everything that pages, counts or submits on
+// this tab goes through here (same contract as visibleSeriesGroups()).
+function visibleDupGroups() {
+  const groups = state.data ? state.data.groups : [];
+  if (state.showSkippedDup) return groups;
+  return groups.filter((g) => !g.skipped);
+}
+
+function skippedDupCount() {
+  return (state.data ? state.data.groups : []).filter((g) => g.skipped).length;
 }
 
 // The complete id universe for a group -- what buildSelectionsPayload()
@@ -341,8 +357,7 @@ function updateSummary() {
       (removeCount > 0 ? "; " + removeCount + i18n("js_summary_del") + fmtSize(removeBytes) : "");
     return;
   }
-  const groups = state.data ? state.data.groups : [];
-  const { fileCount, bytes, groupCount } = computeSelectionSummary(groups);
+  const { fileCount, bytes, groupCount } = computeSelectionSummary(visibleDupGroups());
   summaryEl.textContent = groupCount + i18n("js_summary_groups") + fileCount + i18n("js_summary_del") + fmtSize(bytes);
 }
 
@@ -403,7 +418,7 @@ function currentPageGroups(groups) {
 
 // Which groups the current tab pages through.
 function groupsForCurrentTab() {
-  if (state.tab === "dup") return state.data ? state.data.groups : [];
+  if (state.tab === "dup") return visibleDupGroups();
   if (state.tab === "series") return visibleSeriesGroups();
   // The placement tab pages over suggestions, not folders -- one mixed
   // folder can hold hundreds, so paging by folder would put an unbounded

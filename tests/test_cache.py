@@ -357,6 +357,70 @@ class TestSeriesSkips:
         cache2.close()
 
 
+class TestDupSkips:
+    """The "Exact duplicates" tab's persisted skips: same shape as
+    series_skips, but a table of their own."""
+
+    def test_round_trip_through_a_reopen(self, tmp_path):
+        db_path = str(tmp_path / "cache.sqlite3")
+        cache = Cache(db_path)
+        cache.add_dup_skip("k1", ("d:/a/1.jpg", "d:/b/1.jpg"), "2026-11-11T10:00:00+00:00")
+        cache.close()
+
+        cache2 = Cache(db_path)
+        assert cache2.list_dup_skips() == [("k1", ("d:/a/1.jpg", "d:/b/1.jpg"))]
+        cache2.close()
+
+    def test_add_is_idempotent_and_refreshes_the_timestamp(self, tmp_path):
+        with Cache(str(tmp_path / "cache.sqlite3")) as cache:
+            cache.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+            cache.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-12T10:00:00+00:00")
+            assert len(cache.list_dup_skips()) == 1
+            row = cache._conn.execute(
+                "SELECT skipped_at FROM dup_skips WHERE group_key = 'k1'"
+            ).fetchone()
+            assert row["skipped_at"] == "2026-11-12T10:00:00+00:00"
+
+    def test_remove_deletes_only_the_named_keys(self, tmp_path):
+        with Cache(str(tmp_path / "cache.sqlite3")) as cache:
+            cache.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+            cache.add_dup_skip("k2", ("d:/b/1.jpg",), "2026-11-11T10:00:00+00:00")
+            assert cache.remove_dup_skips(["k1"]) == 1
+            assert cache.remove_dup_skips([]) == 0
+            assert [key for key, _ in cache.list_dup_skips()] == ["k2"]
+
+    def test_is_separate_from_series_skips(self, tmp_path):
+        with Cache(str(tmp_path / "cache.sqlite3")) as cache:
+            cache.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+            assert cache.list_series_skips() == []
+            cache.add_series_skip("k2", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+            assert [key for key, _ in cache.list_dup_skips()] == ["k1"]
+
+    def test_table_is_created_on_a_database_that_predates_it(self, tmp_path):
+        db_path = str(tmp_path / "cache.sqlite3")
+        Cache(db_path).close()
+        raw = sqlite3.connect(db_path)
+        raw.execute("DROP TABLE dup_skips")
+        raw.commit()
+        raw.close()
+
+        cache2 = Cache(db_path)
+        assert cache2.list_dup_skips() == []
+        cache2.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+        assert len(cache2.list_dup_skips()) == 1
+        cache2.close()
+
+    def test_survives_a_schema_version_bump(self, tmp_path):
+        db_path = str(tmp_path / "cache.sqlite3")
+        cache = Cache(db_path, schema_version=1)
+        cache.add_dup_skip("k1", ("d:/a/1.jpg",), "2026-11-11T10:00:00+00:00")
+        cache.close()
+
+        cache2 = Cache(db_path, schema_version=2)
+        assert cache2.list_dup_skips() == [("k1", ("d:/a/1.jpg",))]
+        cache2.close()
+
+
 class TestCompressCalibration:
     """compress_calibration: keyed by (machine_id, device_key) --
     docs/technical/components/compression-mechanism.md. The SQL column is still named "encoder" (see

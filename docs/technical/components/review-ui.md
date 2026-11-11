@@ -137,6 +137,20 @@ separately — a differing filename conveys different information than a
 differing location. Segments are rendered as plain text, never HTML: names come
 from disk and are not trusted content.
 
+**Skipping a group** is persisted server-side on every tab that offers it
+(exact duplicates, series, grouping suggestions, compression): the checkbox posts
+`{"group_id", "skip"}` to that tab's own endpoint (`/api/dup-skip`,
+`/api/series-skip`, `/api/placement-skip`, `/api/compress/skip`), the server
+resolves the id through **that tab's registry only**, and writes the member paths to
+that tab's own cache table before updating its in-memory mirror. The browser flips
+the group's flag only after the server confirms. Every group is sent with a
+`skipped` flag (for duplicates on `GET /api/state`, computed per request) rather
+than omitted, so a skipped group can be revealed with "Show skipped" and taken
+back. Skipped groups are excluded from paging, the summary bar, and both apply
+buttons. Skip mirrors are loaded once at server start and are **not** reset by a
+rescan — they are keyed by paths, not by positional ids. Rule:
+[events-and-series.md](../../business/rules/events-and-series.md).
+
 **Double-clicking opens the file** in the default system application. Works even
 on tabs that move nothing — opening does not modify the archive.
 
@@ -835,6 +849,11 @@ tuned to any observed flakiness.
     same shape/reasoning as series_skips/placement_skips (module
     docstring): keyed by member paths via series.skip_key(), never by
     group_id, and deliberately NOT reset by _run_rescan().
+
+    dup_skips / dup_skip_lock: the same mirror for the "Exact
+    duplicates" tab (cache.dup_skips), loaded by _load_dup_skips() at
+    start_server(), written through POST /api/dup-skip, guarded by its
+    own lock, and likewise NOT reset by a rescan.
 ```
 
 
@@ -1731,8 +1750,9 @@ input_duration_limit, "-t" before "-i"), never the `trim` filter
         (docs/technical/components/review-ui.md).
 
         compress_skips (loaded separately, see _load_compress_skips())
-        also survives -- keyed by member paths, not ids, same as
-        series_skips/placement_skips above.
+        and dup_skips (_load_dup_skips()) also survive -- keyed by
+        member paths, not ids, same as series_skips/placement_skips
+        above.
 
         A compress queue that happens to be RUNNING at the moment of a
         rescan is deliberately left untouched: rescan only clears the
@@ -1799,6 +1819,22 @@ one file (build_compress_views()'s "group of one"), but nothing here
 assumes that -- the same one-or-more-member logic works either way, and
 the disk-sourced removable candidates (assigned their own fresh group_ids
 by _compress_removable_candidates()) reuse this registry too.
+```
+
+
+### From code: `tidy/review/skips.py`
+```python
+--- persisted "skip this group" for the exact-duplicates screen ----------
+
+Same mechanism as the series section above: identity by member paths via
+series.skip_key()/series.group_is_skipped(), reused rather than
+duplicated. Only the registry/table/state fields differ: file_registry
+instead of series_registry, dup_skips instead of series_skips,
+cache.*_dup_skip(s) instead of cache.*_series_skip. Unlike the lazy tabs,
+the skipped flag is computed per GET /api/state (_skipped_dup_group_ids())
+from the paths in file_registry, so a rescan that renumbers the groups
+still hides the same ones. POST /api/dup-skip resolves group_id through
+file_registry only -- an id from another tab is "unknown".
 ```
 
 

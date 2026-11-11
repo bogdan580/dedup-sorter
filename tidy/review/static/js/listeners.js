@@ -249,6 +249,13 @@ document.getElementById("series-window").addEventListener("change", (e) => {
   updateSeriesTuningControls();
 });
 
+// Same toggle, for the exact-duplicates screen's own persisted "pomin".
+document.getElementById("show-skipped-dup").addEventListener("change", (e) => {
+  state.showSkippedDup = e.target.checked;
+  setCurrentPage(1);
+  render();
+});
+
 // Same toggle, for the placement screen's own persisted "pomin".
 document.getElementById("show-skipped-placement").addEventListener("change", (e) => {
   state.showSkippedPlacement = e.target.checked;
@@ -331,7 +338,7 @@ document.getElementById("apply-all-btn").addEventListener("click", async () => {
     await submitApplySeries(payload);
     return;
   }
-  const groups = nonAppliedGroups(state.data ? state.data.groups : []);
+  const groups = nonAppliedGroups(visibleDupGroups());
   const payload = buildSelectionsPayload(groups);
   if (payload.selections.length === 0) {
     document.getElementById("result").textContent = i18n("js_apply_no_series");
@@ -392,7 +399,8 @@ document.getElementById("apply-page-btn").addEventListener("click", async () => 
     await submitApplySeries(payload);
     return;
   }
-  const groups = nonAppliedGroups(currentPageGroups(state.data ? state.data.groups : []));
+  // visibleDupGroups(): page the same filtered list render() shows.
+  const groups = nonAppliedGroups(currentPageGroups(visibleDupGroups()));
   const payload = buildSelectionsPayload(groups);
   if (payload.selections.length === 0) {
     document.getElementById("result").textContent = i18n("js_apply_no_series_page");

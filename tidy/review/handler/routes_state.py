@@ -18,7 +18,11 @@ from tidy.review.computations import (
 from tidy.review.lazy import _LazyComputation
 from tidy.review.page import INDEX_HTML
 from tidy.review.locales import LOCALES
-from tidy.review.skips import _set_series_skip, _skipped_series_group_ids
+from tidy.review.skips import (
+    _set_series_skip,
+    _skipped_dup_group_ids,
+    _skipped_series_group_ids,
+)
 from tidy.review.state import ReviewState
 from tidy.review.validation import _find_already_applied_group_id, _validate_series_selections
 from tidy.review.workers.rescan import _run_rescan
@@ -45,7 +49,13 @@ def handle_index(handler, state, parts) -> None:
 
 
 def handle_state(handler, state, parts) -> None:
-    handler._send_json(HTTPStatus.OK, state.to_json())
+    payload = state.to_json()
+    # Sent for every group, never by omission, so a skip can be taken back.
+    skipped_ids = _skipped_dup_group_ids(state)
+    payload["groups"] = [
+        {**g, "skipped": g["group_id"] in skipped_ids} for g in payload["groups"]
+    ]
+    handler._send_json(HTTPStatus.OK, payload)
 
 
 def handle_lazy(

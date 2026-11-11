@@ -106,6 +106,9 @@ class ReviewState:
     applied_group_ids: Set[str] = field(default_factory=set)
     applied_batches: List[dict] = field(default_factory=list)
     lock: threading.Lock = field(default_factory=threading.Lock)
+    # Mirror of cache.dup_skips; never reset by a rescan (keyed by paths, not ids).
+    dup_skips: Dict[str, FrozenSet[str]] = field(default_factory=dict)
+    dup_skip_lock: threading.Lock = field(default_factory=threading.Lock)
 
     candidates: Sequence[ScannedFile] = ()
     db_path: Optional[str] = None

@@ -239,8 +239,9 @@ is exempt from the coverage threshold and verified manually.
 ```python
     The "pomin ta grupe" decisions taken in
     earlier runs, read before the first request can be served so the very
-    first GET /api/series already knows what to hide. No-op without a
-    db_path -- see _load_series_skips().
+    first GET /api/series already knows what to hide. The same holds for
+    the other tabs' skips (placement, compress, exact duplicates). No-op
+    without a db_path -- see _load_series_skips().
 ```
 
 

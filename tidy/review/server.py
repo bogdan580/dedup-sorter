@@ -66,7 +66,12 @@ from tidy.duplicates.tiers import DuplicateGroup
 from tidy.duplicates.keeper import KeeperDecision
 from tidy.progress import DEFAULT_WORKERS
 from tidy.review.handler import _make_handler_class
-from tidy.review.skips import _load_compress_skips, _load_placement_skips, _load_series_skips
+from tidy.review.skips import (
+    _load_compress_skips,
+    _load_dup_skips,
+    _load_placement_skips,
+    _load_series_skips,
+)
 from tidy.review.state import ReviewState
 from tidy.review.views.duplicates import build_group_views
 
@@ -148,6 +153,7 @@ def start_server(
     # Same for the compress screen's own persisted skips -- see
     # _load_compress_skips().
     _load_compress_skips(state)
+    _load_dup_skips(state)
 
     handler_cls = _make_handler_class(state)
     httpd = ThreadingHTTPServer((host, port), handler_cls)

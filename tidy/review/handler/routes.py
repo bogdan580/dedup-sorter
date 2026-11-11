@@ -39,6 +39,7 @@ POST_ROUTES = {
     "/api/thumb/rotate": routes_dup.handle_rotate_thumb,
     "/api/rescan": routes_state.handle_rescan,
     "/api/restore": routes_restore.handle_restore,
+    "/api/dup-skip": routes_dup.handle_dup_skip,
     "/api/series-skip": routes_state.handle_series_skip,
     "/api/placement-skip": routes_placement.handle_placement_skip,
     "/api/compress/skip": routes_compress.handle_compress_skip,

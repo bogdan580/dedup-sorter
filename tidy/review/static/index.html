@@ -72,6 +72,9 @@
     </div>
     <!-- Skip is persisted server-side; unchecking a revealed group here deletes
          the stored decision. See docs/business/rules/events-and-series.md. -->
+    <div class="controls" id="dup-controls" style="display:none">
+      <label><input type="checkbox" id="show-skipped-dup"> <span id="show-skipped-dup-label" data-i18n="js_show_skipped_groups"></span></label>
+    </div>
     <div class="controls" id="series-controls" style="display:none">
       <label><input type="checkbox" id="show-skipped-series"> <span id="show-skipped-label" data-i18n="js_show_skipped_groups"></span></label>
     </div>

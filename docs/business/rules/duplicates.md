@@ -64,3 +64,16 @@ Beyond permanent rules, scope can be narrowed: by minimum file size, list of
 extensions, and list of directories. Narrowing **never expands** the set — none
 of the exclusions described above can be disabled through flags. Flags:
 [business/instructions/CLI.md](../instructions/CLI.md).
+
+## Skipping a Group in the Review UI
+
+On the "Exact duplicates" tab, "Skip this group" works exactly like skipping a
+series group: the decision is **permanent**, recorded **by the group's file
+paths** (never by group number), and the group disappears from the tab on this
+and every later run. A group that loses a copy stays hidden; a group that gains a
+new copy reappears. "Show skipped groups" (with the hidden count) is the way back,
+and unticking the skip there deletes the stored decision.
+
+Skipped groups are never submitted by "Apply current page" / "Apply all", and the
+CSV report still lists every group. Rule details:
+[business/rules/events-and-series.md](events-and-series.md#skipping-a-group).

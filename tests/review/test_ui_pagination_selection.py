@@ -397,9 +397,9 @@ class TestSelectionModelStep4:
             r'state\.selection\[g\.group_id\]\s*=\s*\{\s*'
             r'keeperId:\s*g\.keeper\.id,\s*'
             r'excludedIds:\s*new Set\(\),\s*'
-            r'skip:\s*false\s*,?\s*\};',
+            r'skip:\s*!!g\.skipped\s*,?\s*\};',
             body,
-        ), "default keeper must be the server's g.keeper.id, no exclusions, group not skipped"
+        ), "default keeper must be the server's g.keeper.id, no exclusions, skip from the server"
 
     def test_load_state_calls_init_selection_before_render(self, running_server):
         html = self._html(running_server)
@@ -549,18 +549,18 @@ class TestSelectionModelStep4:
 
     # -- per-group skip control ----------------------------------------------
 
-    def test_render_creates_skip_group_checkbox_wired_to_sel_skip(self, running_server):
+    def test_render_creates_skip_group_checkbox_wired_to_the_server(self, running_server):
+        # The dup skip is persisted like the series one: the checkbox posts to
+        # /api/dup-skip, and sel.skip flips only after the server confirms.
         html = self._html(running_server)
         render_body = self._function_body(html, "render")
-        assert "skip-group-checkbox" in render_body
-        change_handler = re.search(
-            r'skipCheckbox\.addEventListener\(\s*"change"\s*,\s*\(e\)\s*=>\s*\{(.*?)\}\s*\)\s*;',
-            render_body, re.DOTALL,
-        )
-        assert change_handler, "expected a change listener on the skip-group checkbox"
-        handler_body = change_handler.group(1)
-        assert re.search(r'sel\.skip\s*=\s*e\.target\.checked\s*;', handler_body)
-        assert "render()" in handler_body
+        assert "groupBar.appendChild(makeDupSkipControl(g, sel))" in render_body
+        control = self._function_body(html, "makeDupSkipControl")
+        assert "skip-group-checkbox" in control
+        assert "toggleDupSkip(group, e.target.checked)" in control
+        toggle = self._function_body(html, "toggleDupSkip")
+        assert re.search(r'sel\.skip\s*=\s*wantSkip\s*;', toggle)
+        assert "render()" in toggle
 
     # -- summary reflects current selection, not server totals --------------
 
@@ -587,8 +587,9 @@ class TestSelectionModelStep4:
         body = self._function_body(html, "updateSummary")
         # computeSelectionSummary() is parameterized (each apply
         # button's confirm() dialog needs a different subset) -- the
-        # overall #summary bar still passes it the *whole* dataset.
-        assert re.search(r'computeSelectionSummary\(\s*groups\s*\)', body)
+        # overall #summary bar passes it every group the tab offers
+        # (visibleDupGroups(): skipped groups are not offered).
+        assert re.search(r'computeSelectionSummary\(\s*visibleDupGroups\(\)\s*\)', body)
         assert "fmtSize(bytes)" in body
         assert 'getElementById("summary")' in body
 
@@ -702,9 +703,8 @@ class TestApplyButtonsKrok5:
     def test_apply_all_button_builds_payload_from_non_applied_groups_of_whole_dataset(self, running_server):
         html = self._html(running_server)
         body = self._click_handler_body(html, "apply-all-btn")
-        assert re.search(
-            r'nonAppliedGroups\(\s*state\.data\s*\?\s*state\.data\.groups\s*:\s*\[\]\s*\)', body,
-        )
+        # visibleDupGroups(): a persisted "skip this group" is never submitted.
+        assert re.search(r'nonAppliedGroups\(\s*visibleDupGroups\(\)\s*\)', body)
         assert re.search(r'buildSelectionsPayload\(\s*groups\s*\)', body)
         assert re.search(r'computeSelectionSummary\(\s*groups\s*\)', body)
 
@@ -733,7 +733,7 @@ class TestApplyButtonsKrok5:
         html = self._html(running_server)
         body = self._click_handler_body(html, "apply-page-btn")
         assert re.search(
-            r'nonAppliedGroups\(\s*currentPageGroups\(\s*state\.data\s*\?\s*state\.data\.groups\s*:\s*\[\]\s*\)\s*\)',
+            r'nonAppliedGroups\(\s*currentPageGroups\(\s*visibleDupGroups\(\)\s*\)\s*\)',
             body,
         ), (
             "Zastosuj biezaca strone (dup) must narrow to currentPageGroups(...), "
@@ -828,8 +828,9 @@ class TestApplyButtonsKrok5:
         html = self._html(running_server)
         body = self._function_body(html, "updateApplyButtonsEnabled")
         assert re.search(
-            r'!state\.data\s*\|\|\s*state\.data\.all_applied\s*\|\|\s*state\.data\.group_count\s*===\s*0', body,
+            r'!state\.data\s*\|\|\s*state\.data\.all_applied\s*\|\|\s*groups\.length\s*===\s*0', body,
         )
+        assert re.search(r'groups\.every\(\(g\)\s*=>\s*g\.applied\s*\|\|\s*g\.skipped\)', body)
         assert "allBtn.disabled = disable" in body
         assert "pageBtn.disabled = disable" in body
 

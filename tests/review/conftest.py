@@ -488,6 +488,57 @@ def series_skip_server(tmp_path):
 
 
 @pytest.fixture
+def dup_skip_server(tmp_path):
+    """A review server with a REAL db_path and two exact-duplicate groups
+    ("1": a/b, "2": c/d), plus a `start()` that brings a brand-new server up
+    over the SAME database -- the dup-tab twin of series_skip_server."""
+    archive_root = str(tmp_path / "Archive").replace("\\", "/")
+    db_path = str(tmp_path / "cache.sqlite3")
+    fs = FakeFileSystem()
+    fs.add_dir(archive_root)
+    for i, name in enumerate(("a.bin", "b.bin", "c.bin", "d.bin"), start=1):
+        fs.add_file(f"{archive_root}/{name}", b"x" * 10, volume_id=1, file_index=i)
+
+    def group(keeper, discard, full_hash):
+        return (
+            DuplicateGroup(
+                size=10, full_hash=full_hash,
+                paths=(f"{archive_root}/{keeper}", f"{archive_root}/{discard}"),
+            ),
+            KeeperDecision(
+                keeper=f"{archive_root}/{keeper}",
+                discarded=(Discard(path=f"{archive_root}/{discard}", reason="dup-exact"),),
+            ),
+        )
+
+    pairs = [group("a.bin", "b.bin", "h1"), group("c.bin", "d.bin", "h2")]
+    running = []
+
+    def start():
+        httpd, thread, state = review_server.start_server(
+            fs=fs,
+            archive_root=archive_root,
+            duplicate_groups=[g for g, _ in pairs],
+            decisions=[d for _, d in pairs],
+            thumbs_dir=str(tmp_path / "thumbs"),
+            host="127.0.0.1",
+            port=0,
+            token="test-token",
+            db_path=db_path,
+        )
+        running.append((httpd, thread))
+        return state
+
+    try:
+        yield start, fs, db_path
+    finally:
+        for httpd, thread in running:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=5)
+
+
+@pytest.fixture
 def compress_server(tmp_path):
     """A real, on-disk archive holding one real, tiny video ffprobe can
     actually read, plus a FakeFileSystem shadow of the same tree for

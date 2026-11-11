@@ -12,7 +12,7 @@ class TestRouteTable:
     def test_table_sizes(self):
         assert len(GET_ROUTES) == 11
         assert len(GET_PREFIX_ROUTES) == 1
-        assert len(POST_ROUTES) == 14
+        assert len(POST_ROUTES) == 15
 
     def test_every_post_route_rejected_without_token(self, running_server):
         httpd, _state = running_server
