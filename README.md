@@ -21,7 +21,7 @@ The `.dedup` repository directory must be placed **directly inside the root dire
 On every run, the tool creates any of these special directories that are missing in your archive:
 - `!NEW` – an inbox for newly dumped photos waiting to be sorted
 - `!MOVES` – history of manifests and move operations
-- `!REMOVE` – a safe trash bin where rejected duplicates go (they are never permanently deleted by the program)
+- `!REMOVE` – a safe trash bin for rejected duplicates and files you marked for removal in the review UI (they are never permanently deleted by the program)
 
 The `run.cmd` / `run.ps1` / `run.sh` launchers are stricter: they abort if `!NEW` does not exist yet, so create it first (step 4 below).
 

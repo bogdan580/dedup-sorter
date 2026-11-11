@@ -60,7 +60,7 @@ evaluated from a CSV spreadsheet.
 |---|---|---|
 | Exact duplicates | compact list — files are identical, so **paths** matter, not images | yes, to trash |
 | Series and similar | tile grid, suggested keeper highlighted | yes, to trash |
-| Grouping suggestions | editable destination directory, candidates, thumbnail strips | yes, deeper into archive |
+| Grouping suggestions | editable destination directory, candidates, thumbnail strips; cards cycle unmarked / blue (move) / red (remove) | yes, deeper into archive; red cards to trash |
 | Compression suggestion | candidates from selected directory, estimation table, encoding queue | creates new files; originals to trash only on separate command |
 | Restore | batches existing on disk and number of files that can be undone | restores |
 
@@ -1115,11 +1115,16 @@ tuned to any observed flakiness.
 ```python
     The op=move counterpart of /api/apply-series.
     Same shape -- own registry, own applied-set, same
-    check-then-validate-then-move ordering under state.lock --
-    but it ends in applier.apply_moves() rather than
-    apply_batch(), so nothing here can ever send a file to
-    !REMOVE (and apply_moves() refuses a destination in there
-    even if asked).
+    check-then-validate-then-move ordering under state.lock.
+    `file_ids` (blue cards) end in applier.apply_moves(), which
+    refuses a destination inside !REMOVE; `remove_ids` (red
+    cards) end in applier.apply_batch() with reason
+    `event-remove` and an empty keeper. Each non-empty half is
+    its own batch with its own batch_id; when both exist the
+    response is the move batch with the remove batch nested as
+    `remove_batch`. Either list may be empty, not both; ids
+    must be disjoint; `dest` is validated only when `file_ids`
+    is non-empty.
 ```
 
 

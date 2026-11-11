@@ -566,6 +566,85 @@ class TestPlacementHTTP:
         assert "!MOVES" in result["batch_dir"]
         assert fs.exists(f"{state.archive_root}/!REMOVE") is False
 
+    def test_red_files_go_to_remove_and_blue_ones_move_in_two_batches(self, placement_server):
+        httpd, state, fs = placement_server
+        payload = _wait_placement_ready(state.port)
+        suggestion = payload["folders"][0]["suggestions"][0]
+        ids = [e["id"] for e in suggestion["entries"]]
+
+        status, body, _ = _post_json(
+            state.port, "/api/apply-placement",
+            headers={"X-Dedup-Token": "test-token", "Host": f"127.0.0.1:{state.port}"},
+            payload={"selections": [{
+                "group_id": suggestion["group_id"],
+                "file_ids": ids[:1],
+                "remove_ids": ids[1:],
+                "dest": "#Home\\2024 Gdansk",
+            }]},
+        )
+        assert status == 200
+        result = json.loads(body.decode("utf-8"))
+        assert result["moved"] == 1
+        assert "!MOVES" in result["batch_dir"]
+        removed = result["remove_batch"]
+        assert removed["moved"] == 1
+        assert "!REMOVE" in removed["batch_dir"]
+        assert removed["batch_id"] != result["batch_id"]
+        assert fs.exists(f"{state.archive_root}/!NEW/Gdansk/a.jpg") is False
+        assert fs.exists(f"{state.archive_root}/!NEW/Gdansk/b.jpg") is False
+        assert fs.exists(f"{state.archive_root}/#Home/2024 Gdansk/b.jpg") is False
+
+    def test_removal_only_selection_sends_everything_to_remove(self, placement_server):
+        httpd, state, fs = placement_server
+        payload = _wait_placement_ready(state.port)
+        suggestion = payload["folders"][0]["suggestions"][0]
+
+        status, body, _ = _post_json(
+            state.port, "/api/apply-placement",
+            headers={"X-Dedup-Token": "test-token", "Host": f"127.0.0.1:{state.port}"},
+            payload={"selections": [{
+                "group_id": suggestion["group_id"],
+                "file_ids": [],
+                "remove_ids": [e["id"] for e in suggestion["entries"]],
+                "dest": "",
+            }]},
+        )
+        assert status == 200
+        result = json.loads(body.decode("utf-8"))
+        assert result["moved"] == 2
+        assert "!REMOVE" in result["batch_dir"]
+        assert "remove_batch" not in result
+        assert fs.exists(f"{state.archive_root}/!NEW/Gdansk/a.jpg") is False
+        assert fs.exists(f"{state.archive_root}/#Home/2024 Gdansk/a.jpg") is False
+
+    def test_remove_batch_restores_back_to_the_source(self, placement_server):
+        httpd, state, fs = placement_server
+        payload = _wait_placement_ready(state.port)
+        suggestion = payload["folders"][0]["suggestions"][0]
+        headers = {"X-Dedup-Token": "test-token", "Host": f"127.0.0.1:{state.port}"}
+        _, body, _ = _post_json(
+            state.port, "/api/apply-placement", headers=headers,
+            payload={"selections": [{
+                "group_id": suggestion["group_id"],
+                "file_ids": [],
+                "remove_ids": [e["id"] for e in suggestion["entries"]],
+                "dest": "",
+            }]},
+        )
+        batch_id = json.loads(body.decode("utf-8"))["batch_id"]
+
+        status, body, _ = _post_json(
+            state.port, "/api/restore", headers=headers, payload={"batch_id": batch_id},
+        )
+        assert status == 200
+        result = json.loads(body.decode("utf-8"))
+        assert result["restored"] == 2
+        assert result["refused"] == 0
+        assert fs.exists(f"{state.archive_root}/!NEW/Gdansk/a.jpg") is True
+        assert fs.exists(f"{state.archive_root}/!NEW/Gdansk/b.jpg") is True
+        status, body, _ = _get(state.port, "/api/batches")
+        assert status == 200
+
     def test_applied_suggestion_is_flagged_and_cannot_be_applied_twice(self, placement_server):
         httpd, state, fs = placement_server
         payload = _wait_placement_ready(state.port)

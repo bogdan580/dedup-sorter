@@ -227,15 +227,20 @@ one.
 ```python
 --- selection model for POST /api/apply-placement ---------------------------
 
-Body: {"selections": [{"group_id", "file_ids", "dest"}, ...]}. Shaped like
-_validate_series_selections() and validated with the same all-or-nothing
-discipline, but it produces applier.MovePlan objects rather than
-DuplicateGroup/KeeperDecision pairs -- a placement discards nothing, so
-there is no keeper to name and no group to reconstruct.
+Body: {"selections": [{"group_id", "file_ids", "remove_ids", "dest"}, ...]}.
+Shaped like _validate_series_selections() and validated with the same
+all-or-nothing discipline. `file_ids` (blue cards) become applier.MovePlan
+objects; `remove_ids` (red cards, optional) become DuplicateGroup/
+KeeperDecision pairs with an empty keeper via _placement_removals() -- a
+removed placement file is not a copy of anything, so there is no keeper
+to name. Both lists are resolved through placement_registry only, must be
+disjoint, and may not both be empty.
 
-`dest` is the one field that originates with the user. It is sanitised
-here and re-checked for containment inside apply_moves(); neither check
-is load-bearing on its own.
+`dest` is the one field that originates with the user. It is validated
+only when `file_ids` is non-empty, sanitised here and re-checked for
+containment inside apply_moves(); neither check is load-bearing on its
+own. `remove_ids` carry no path at all -- apply_batch() derives the
+!REMOVE destination itself.
 ```
 
 

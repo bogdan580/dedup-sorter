@@ -69,8 +69,11 @@ function ensurePlacementSelection(folders) {
         // destination: the common case is "yes, that's right", and making
         // the user tick each photo to accept a correct suggestion would be
         // busy work. Unticking is how you disagree.
+        // removeIds: the third card state (red) -- files sent to !REMOVE
+        // on apply instead of being moved. Disjoint from fileIds.
         state.placementSelection[suggestion.group_id] = {
           fileIds: new Set(suggestion.entries.map((e) => e.id)),
+          removeIds: new Set(),
           dest: match ? match.rel : suggestion.suggested_folder,
           skip: false,
         };
@@ -457,6 +460,20 @@ function makeSuggestionBlock(folder, suggestion) {
     bar.appendChild(rotateGroupBtn);
   }
 
+  // Only marks every card red; the move to !REMOVE happens on apply.
+  const removeAllBtn = document.createElement("button");
+  removeAllBtn.type = "button";
+  removeAllBtn.className = "remove-all-btn";
+  removeAllBtn.title = i18n("js_remove_all_title");
+  removeAllBtn.textContent = i18n("js_remove_all_btn");
+  removeAllBtn.disabled = !!suggestion.applied;
+  removeAllBtn.addEventListener("click", () => {
+    sel.fileIds.clear();
+    suggestion.entries.forEach((e) => sel.removeIds.add(e.id));
+    render();
+  });
+  bar.appendChild(removeAllBtn);
+
   // The "pomin" checkbox matches the series screen: same shared
   // .skip-toggle look, same server round trip (POST /api/placement-skip)
   // rather than a purely client-side flag, so a skipped suggestion stays
@@ -490,19 +507,29 @@ function makeSuggestionBlock(folder, suggestion) {
     // move", there "files that stay"), but the interaction is identical,
     // and a second card renderer would be a second place for the two
     // screens to drift apart.
+    //
+    // A click cycles three states: unmarked (stays) -> blue (moves to the
+    // destination) -> red (goes to !REMOVE) -> unmarked. The second click of
+    // a double-click (e.detail === 2) steps back, so opening a file leaves
+    // its state unchanged.
     const selected = sel.fileIds.has(fileEntry.id);
     const card = makeCard(fileEntry, selected, suggestion.group_id, pathHighlights[i], {
       multiKeep: true,
       readOnly: !!suggestion.applied,
-      onToggle: () => {
-        if (sel.fileIds.has(fileEntry.id)) {
-          sel.fileIds.delete(fileEntry.id);
-        } else {
-          sel.fileIds.add(fileEntry.id);
-        }
+      onToggle: (e) => {
+        const order = ["none", "move", "remove"];
+        const now = sel.fileIds.has(fileEntry.id) ? "move"
+          : (sel.removeIds.has(fileEntry.id) ? "remove" : "none");
+        const step = (e && e.detail === 2) ? order.length - 1 : 1;
+        const next = order[(order.indexOf(now) + step) % order.length];
+        sel.fileIds.delete(fileEntry.id);
+        sel.removeIds.delete(fileEntry.id);
+        if (next === "move") sel.fileIds.add(fileEntry.id);
+        if (next === "remove") sel.removeIds.add(fileEntry.id);
         render();
       },
     });
+    if (sel.removeIds.has(fileEntry.id)) card.classList.add("to-remove");
     row.appendChild(card);
   });
   block.appendChild(row);
@@ -512,8 +539,9 @@ function makeSuggestionBlock(folder, suggestion) {
 
 // The submit payload for POST /api/apply-placement. Skipped
 // suggestions, already-applied ones, and ones the user emptied by unticking
-// every card are all left out -- empty file_ids is a 400 from the server,
-// and sending one would turn "I don't want this group" into an error.
+// every card are all left out -- empty file_ids AND remove_ids is a 400
+// from the server, and sending one would turn "I don't want this group"
+// into an error.
 function buildPlacementPayload(items) {
   const selections = [];
   for (const item of items) {
@@ -522,32 +550,47 @@ function buildPlacementPayload(items) {
     const sel = state.placementSelection[suggestion.group_id];
     if (!sel || sel.skip) continue;
     const fileIds = suggestion.entries.map((e) => e.id).filter((id) => sel.fileIds.has(id));
-    if (fileIds.length === 0) continue;
+    const removeIds = suggestion.entries.map((e) => e.id).filter((id) => sel.removeIds.has(id));
+    if (fileIds.length === 0 && removeIds.length === 0) continue;
     selections.push({
       group_id: suggestion.group_id,
       file_ids: fileIds,
+      remove_ids: removeIds,
       dest: sel.dest,
     });
   }
   return selections;
 }
 
+// Appended to the placement confirm() only when some cards are red.
+function placementRemoveConfirmTail(summary) {
+  if (summary.removeCount === 0) return "";
+  return "\n\n" + i18n("js_conf_plac_remove")
+    .replace("{n}", summary.removeCount)
+    .replace("{size}", fmtSize(summary.removeBytes));
+}
+
 function computePlacementSummary(items) {
   let fileCount = 0;
   let bytes = 0;
   let groupCount = 0;
+  let removeCount = 0;
+  let removeBytes = 0;
   for (const item of items) {
     const suggestion = item.suggestion;
     if (suggestion.applied) continue;
     const sel = state.placementSelection[suggestion.group_id];
     if (!sel || sel.skip) continue;
     const moving = suggestion.entries.filter((e) => sel.fileIds.has(e.id));
-    if (moving.length === 0) continue;
+    const removing = suggestion.entries.filter((e) => sel.removeIds.has(e.id));
+    if (moving.length === 0 && removing.length === 0) continue;
     groupCount += 1;
     fileCount += moving.length;
     moving.forEach((e) => { bytes += e.size || 0; });
+    removeCount += removing.length;
+    removing.forEach((e) => { removeBytes += e.size || 0; });
   }
-  return { fileCount, bytes, groupCount };
+  return { fileCount, bytes, groupCount, removeCount, removeBytes };
 }
 
 // --- compress screen ("Sugestia kompresji") -------------------------------

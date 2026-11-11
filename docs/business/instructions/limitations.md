@@ -146,8 +146,9 @@ undergone runs on a real physical volume. The mock does not emulate certain Wind
 - **A full run over the entire complete archive.** Verification runs so far covered
   small test sets.
 - **HEIC files on real data** — 769 files and 18 conversion pairs have not yet undergone a live run.
-- **Applying grouping suggestions from the browser UI.** A first run should be
-  tested on two non-critical files and rolled back immediately.
+- **Applying grouping suggestions from the browser UI**, including cards marked
+  red (to `!REMOVE`). A first run should be tested on two non-critical files and
+  rolled back immediately.
 
 ## Risks Requiring User Decisions
 

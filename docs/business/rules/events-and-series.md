@@ -87,7 +87,8 @@ breaking archive conventions. Counts are displayed in the UI next to the group.
 
 This mode **plans**. The CLI generates a report and touches no files.
 Execution takes place in the review UI on the grouping suggestions tab —
-rules in [business/rules/version-selection.md](version-selection.md).
+rules (including the move / remove card states) in
+[business/rules/version-selection.md](version-selection.md#card-states).
 
 
 ---

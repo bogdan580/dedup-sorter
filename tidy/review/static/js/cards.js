@@ -191,7 +191,7 @@ function makeCard(entry, isKeeper, groupId, pathInfo, options) {
     // and may legitimately be emptied, which the series branch below
     // deliberately forbids. An explicit callback keeps the two rules apart
     // instead of putting a screen test inside makeCard.
-    card.addEventListener("click", () => { options.onToggle(); });
+    card.addEventListener("click", (e) => { options.onToggle(e); });
   } else if (options.multiKeep) {
     // Click toggles this file's membership in the group's keepIds. Refuses
     // to drop the last kept file via a plain click -- a group must keep at

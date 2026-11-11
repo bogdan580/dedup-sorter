@@ -65,6 +65,7 @@ Every discarded file is assigned a reason, visible in the report and manifest:
 | `dup-exact` | byte duplicate discarded by the criteria chain |
 | `dup-visual` | element of a series |
 | `event-sort` | move as part of grouping suggestions — does not discard anything |
+| `event-remove` | grouping-suggestion card marked red — discarded to `!REMOVE` |
 
 Meaning of values: [glossary.md](../../glossary.md).
 
@@ -150,6 +151,29 @@ The color of the destination directory field indicates what will happen with wha
 
 **Files move deeper into the archive, not to the trash.** The manifest lands in `!MOVES`,
 and rollback works the same as with removal.
+
+### Card States
+
+A click on a card cycles through three states:
+
+| State | Look | On apply |
+|---|---|---|
+| unmarked | dimmed | stays where it is |
+| blue (default for every file) | accent border | moved to the destination directory (`op=move`, reason `event-sort`) |
+| red | red border and background | moved to `!REMOVE` (`op=remove`, reason `event-remove`) |
+
+The second click of a double-click steps back, so opening a file never changes
+its state. **Remove all** (between "rotate group" and "Skip this group") turns
+every card of the group red. It only marks — nothing moves until "Apply current
+page" / "Apply all".
+
+Red exists because a drop into `!NEW` often holds rejects next to the keepers;
+sorting the keepers away and leaving the rejects behind would leave them for a
+second pass. Unlike a series group, a suggestion may be discarded whole — its
+files are not alternatives of one another, and the choice is explicit. They
+still go through the trash, never to physical deletion. An apply with both
+colours writes two batches — one `!MOVES` manifest and one `!REMOVE` manifest —
+each restorable on its own. A removal-only group needs no destination directory.
 
 **Name collisions never overwrite** — the file receives a `__dup2` suffix. A collision
 here indicates two **different** photos sharing the same camera-assigned filename:

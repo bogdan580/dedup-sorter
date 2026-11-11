@@ -206,6 +206,28 @@ class TestIndexHtmlPaginationAndColumns:
         assert "rotateGroupThumbs(seriesThumbIds)" in html
         assert "rotateGroupThumbs(thumbIds)" in html
 
+    def test_placement_remove_all_btn_sits_between_rotate_and_skip(self, running_server):
+        html = self._html(running_server)
+        start = html.index("function makeSuggestionBlock(")
+        body = html[start:html.index("function buildPlacementPayload(", start)]
+        rotate = body.index("bar.appendChild(rotateGroupBtn)")
+        remove = body.index("bar.appendChild(removeAllBtn)")
+        skip = body.index("bar.appendChild(skipLabel)")
+        assert rotate < remove < skip
+        assert 'removeAllBtn.className = "remove-all-btn"' in body
+        assert "sel.removeIds.add(" in body
+        assert 'card.classList.add("to-remove")' in body
+        # The second click of a double-click (which opens the file) steps
+        # back, so opening a photo never changes its state.
+        assert "e.detail === 2" in body
+        assert 'card.addEventListener("click", (e) => { options.onToggle(e); });' in html
+
+    def test_placement_payload_carries_remove_ids(self, running_server):
+        html = self._html(running_server)
+        start = html.index("function buildPlacementPayload(")
+        body = html[start:html.index("function computePlacementSummary(", start)]
+        assert "remove_ids: removeIds" in body
+
     def test_rotate_group_btn_css_pins_it_to_group_bar_top_right(self, running_server):
         html = self._html(running_server)
         style_match = re.search(r'<style>(.*?)</style>', html, re.DOTALL)

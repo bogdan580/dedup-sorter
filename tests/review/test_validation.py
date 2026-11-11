@@ -202,6 +202,46 @@ class TestValidatePlacementSelections:
         assert plans == []
         assert "more than once" in error
 
+    def test_removal_only_selection_needs_no_destination(self):
+        selections = [{"group_id": "p1", "file_ids": [], "remove_ids": ["p1:0", "p1:1"], "dest": ""}]
+        plans, error = review_validation._validate_placement_selections(
+            selections, self._registry(), "D:/A",
+        )
+        assert error is None
+        assert plans == []
+        groups, decisions = review_validation._placement_removals(selections, self._registry())
+        assert len(decisions) == 1
+        assert decisions[0].keeper == ""
+        assert [d.path for d in decisions[0].discarded] == [
+            "D:/A/!NEW/Gdansk/a.jpg", "D:/A/!NEW/Gdansk/b.jpg",
+        ]
+        assert {d.reason for d in decisions[0].discarded} == {"event-remove"}
+        assert groups[0].paths == ("D:/A/!NEW/Gdansk/a.jpg", "D:/A/!NEW/Gdansk/b.jpg")
+
+    def test_mixed_selection_splits_into_moves_and_removals(self):
+        selections = [{"group_id": "p1", "file_ids": ["p1:0"], "remove_ids": ["p1:1"], "dest": "#Home"}]
+        plans, error = review_validation._validate_placement_selections(
+            selections, self._registry(), "D:/A",
+        )
+        assert error is None
+        assert [p.src_abs for p in plans] == ["D:/A/!NEW/Gdansk/a.jpg"]
+        _, decisions = review_validation._placement_removals(selections, self._registry())
+        assert [d.path for d in decisions[0].discarded] == ["D:/A/!NEW/Gdansk/b.jpg"]
+
+    @pytest.mark.parametrize("selection,fragment", [
+        ({"group_id": "p1", "file_ids": ["p1:0"], "remove_ids": ["p1:0"], "dest": "#Home"}, "duplicate ids"),
+        ({"group_id": "p1", "file_ids": [], "remove_ids": "p1:0", "dest": ""}, "remove_ids must be a list"),
+        ({"group_id": "p1", "file_ids": [], "remove_ids": ["p2:0"], "dest": ""}, "does not belong"),
+        ({"group_id": "p1", "file_ids": [], "remove_ids": ["nope"], "dest": ""}, "unknown id"),
+        ({"group_id": "p1", "file_ids": [], "remove_ids": [], "dest": "#Home"}, "must not be empty"),
+    ])
+    def test_rejects_bad_remove_ids(self, selection, fragment):
+        plans, error = review_validation._validate_placement_selections(
+            [selection], self._registry(), "D:/A",
+        )
+        assert plans == []
+        assert error is not None and fragment in error
+
 
 class TestParseSeriesParams:
     """_parse_series_params(): the guard between the dev-mode selects and

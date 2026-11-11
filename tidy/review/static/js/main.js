@@ -139,8 +139,9 @@ async function refreshSeriesData() {
 }
 
 // The placement screen's own submit path -- POST
-// /api/apply-placement, which ends in applier.apply_moves(), not
-// apply_batch(). Nothing on this path can send a file to !REMOVE.
+// /api/apply-placement: blue cards go through applier.apply_moves(), red
+// ones through apply_batch() into !REMOVE. With both, the second batch
+// arrives as result.remove_batch and gets its own restore button.
 async function submitApplyPlacement(selections) {
   const resp = await fetch("/api/apply-placement", {
     method: "POST",
@@ -148,7 +149,10 @@ async function submitApplyPlacement(selections) {
     body: JSON.stringify({ selections: selections }),
   });
   const result = await resp.json();
+  const removeBatch = result.remove_batch;
+  delete result.remove_batch;
   appendResult(result);
+  if (removeBatch) appendResult(removeBatch);
   await refreshPlacementData();
 }
 

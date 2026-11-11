@@ -188,6 +188,11 @@ input[type="checkbox"] {
   .rotate-group-btn { margin-left: auto; border: 1px solid var(--border);
                        border-radius: var(--r-sm); background: transparent; color: inherit;
                        font-size: var(--fs-sm); line-height: 1; padding: 0.15rem 0.5rem; }
+  /* Placement only, same look as .rotate-group-btn; sits right after it. */
+  .remove-all-btn { margin-left: auto; border: 1px solid var(--border);
+                     border-radius: var(--r-sm); background: transparent; color: inherit;
+                     font-size: var(--fs-sm); line-height: 1; padding: 0.15rem 0.5rem; }
+  .rotate-group-btn + .remove-all-btn { margin-left: 0; }
   /* grid-column spans every column: the parent screen is a grid, so without
      it a whole-screen message ("calculating...", an error, "no groups") would sit
      centered inside column 1 rather than centered on screen. */
@@ -405,3 +410,9 @@ input[type="checkbox"] {
 }
 .compress-results-panel > .folder-bar { background: transparent !important; padding-top: 0 !important; }
 .compress-results-panel > .danger-remove-btn { margin-top: var(--sp-4); }
+
+/* Placement: the third card state -- marked red, goes to !REMOVE on apply.
+   The id keeps it above the generic dimming of non-keeper cards. */
+#placement-screen .card.to-remove { opacity: 1; filter: none; font-weight: bold;
+  border: 1px solid var(--danger-fg); border-bottom: 4px solid var(--danger-fg);
+  background: var(--danger-bg); }

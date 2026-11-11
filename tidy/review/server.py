@@ -3,7 +3,8 @@
 Serves a single-page review UI over `http.server`, bound to 127.0.0.1 only.
 Four of the five tabs write: "Exact duplicates" and "Series and similar"
 send discards to !REMOVE (op=remove); "Grouping suggestions" moves files
-deeper into the archive (op=move, POST /api/apply-placement); "Sugestia
+deeper into the archive (op=move, POST /api/apply-placement) and sends the
+cards marked red to !REMOVE (op=remove, same endpoint, separate batch); "Sugestia
 kompresji" lands a new file next to its untouched original (op=compress,
 POST /api/apply-compress) and can discard that original only afterwards,
 as a separate op=remove batch. The events registry is read-only -- no

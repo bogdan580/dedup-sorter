@@ -110,6 +110,7 @@ These appear in `raport.csv` and `manifest.csv`. We do not translate them — th
 | `dup-visual` | Discarded as part of a series. |
 | `rule-0` | Discarded by Rule 0 — copy from `!NEW`. |
 | `event-sort` | Moved as part of grouping suggestions. Does not discard anything. |
+| `event-remove` | Marked red ("remove") on the grouping suggestions tab and discarded to `!REMOVE`. |
 | `compress-remove-original` | Original discarded following successful, verified compression. |
 
 **`op`** — operation type:

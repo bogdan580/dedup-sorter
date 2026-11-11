@@ -24,6 +24,7 @@ REASON_RULE_0 = "rule-0"
 REASON_DUP_EXACT = "dup-exact"
 REASON_DUP_VISUAL = "dup-visual"
 REASON_EVENT_SORT = "event-sort"
+REASON_EVENT_REMOVE = "event-remove"
 REASON_COMPRESS_REMOVE = "compress-remove-original"
 
 # --- config.json schema + defaults ------------------------------------------

@@ -26,7 +26,7 @@ Katalog `.dedup` z pobranym kodem repozytorium musi znajdować się **bezpośred
 Przy każdym uruchomieniu narzędzie tworzy w archiwum brakujące specjalne katalogi:
 - `!NEW` – skrzynka wejściowa na nowo zrzucone zdjęcia do posortowania
 - `!MOVES` – historia manifestów i kopii operacji
-- `!REMOVE` – bezpieczny kosz, do którego trafiają odrzucone duplikaty (nigdy nie są trwale usuwane przez program)
+- `!REMOVE` – bezpieczny kosz, do którego trafiają odrzucone duplikaty i pliki oznaczone do usunięcia w interfejsie przeglądu (nigdy nie są trwale usuwane przez program)
 
 Skrypty startowe `run.cmd` / `run.ps1` / `run.sh` są bardziej rygorystyczne: przerywają pracę, jeśli `!NEW` jeszcze nie istnieje, więc utwórz go wcześniej (krok 4 poniżej).
 

@@ -19,6 +19,7 @@ from tidy.review.computations import (
 from tidy.review.skips import _set_placement_skip, _skipped_placement_group_ids
 from tidy.review.validation import (
     _find_already_applied_group_id,
+    _placement_removals,
     _validate_placement_selections,
     sanitize_dest_folder,
 )
@@ -159,30 +160,50 @@ def handle_apply_placement(handler, state, body: bytes) -> None:
             handler._send_json(HTTPStatus.BAD_REQUEST, {"error": validation_error})
             return
 
-        result = applier.apply_moves(
-            state.fs, state.archive_root, plans,
+        removal_groups, removal_decisions = _placement_removals(
+            selections, state.placement_registry,
         )
+        batches = []
+        if plans:
+            move_result = applier.apply_moves(state.fs, state.archive_root, plans)
+            batches.append(_batch_payload(state, move_result, sorted({
+                s["group_id"] for s in selections if s.get("file_ids")
+            })))
+        if removal_decisions:
+            remove_result = applier.apply_batch(
+                state.fs, state.archive_root, removal_groups, removal_decisions,
+            )
+            batches.append(_batch_payload(state, remove_result, sorted({
+                s["group_id"] for s in selections if s.get("remove_ids")
+            })))
         batch_group_ids = sorted({s["group_id"] for s in selections})
-        payload = {
-# See: docs/technical/components/review-ui.md
-            "batch_id": _register_batch(state, result.manifest_path),
-            "kind": "placement",
-            "scan_generation": state.scan_generation,
-            "moved": result.moved,
-            "failed": result.failed,
-            "batch_dir": report.display_path(result.batch_dir),
-            "manifest_path": report.display_path(result.manifest_path),
-            "group_ids": batch_group_ids,
-# See: docs/technical/components/review-ui.md
-            "errors": [
-                {"path": report.display_path(e.src_abs), "error": e.error}
-                for e in result.entries
-                if e.status == manifest.STATUS_FAILED
-            ],
-        }
+        # One response, up to two batches (op=move, op=remove); the second
+        # rides along as `remove_batch` so each keeps its own restore id.
+        payload = dict(batches[0])
+        if len(batches) > 1:
+            payload["remove_batch"] = batches[1]
         state.applied_placement_group_ids.update(batch_group_ids)
-        state.applied_batches.append(payload)
+        state.applied_batches.extend(batches)
 # See: docs/technical/components/review-ui.md
     _invalidate_dir_index(state)
     _invalidate_batch_cache(state)
     handler._send_json(HTTPStatus.OK, payload)
+
+
+def _batch_payload(state, result, group_ids) -> dict:
+    return {
+        "batch_id": _register_batch(state, result.manifest_path),
+        "kind": "placement",
+        "scan_generation": state.scan_generation,
+        "moved": result.moved,
+        "failed": result.failed,
+        "batch_dir": report.display_path(result.batch_dir),
+        "manifest_path": report.display_path(result.manifest_path),
+        "group_ids": group_ids,
+# See: docs/technical/components/review-ui.md
+        "errors": [
+            {"path": report.display_path(e.src_abs), "error": e.error}
+            for e in result.entries
+            if e.status == manifest.STATUS_FAILED
+        ],
+    }

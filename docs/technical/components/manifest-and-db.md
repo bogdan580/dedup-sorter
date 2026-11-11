@@ -20,7 +20,7 @@ software without special adjustments.
 | `dst_rel` | destination path — meaning depends on `op`, see below |
 | `size`, `mtime`, `hash` | file identity verification on undo |
 | `group_id`, `keeper_abs` | group and kept copy; empty for `move` |
-| `reason` | `dup-exact`, `dup-visual`, `rule-0`, `event-sort`, `compress-remove-original`, or compression profile name |
+| `reason` | `dup-exact`, `dup-visual`, `rule-0`, `event-sort`, `event-remove`, `compress-remove-original`, or compression profile name |
 | `ts`, `tool_version` | entry timestamp and tool version |
 | `status` | `planned`, `done`, or `failed` |
 | `error` | system error message on failed move |

@@ -286,11 +286,9 @@ document.getElementById("last-page").addEventListener("click", () => {
 
 document.getElementById("apply-all-btn").addEventListener("click", async () => {
   if (state.tab === "placement") {
-    // The confirm() text names the destination, not !REMOVE -- this is the
-    // one apply path in the tool that does not throw anything away, and
-    // saying "do !REMOVE" here would be a lie about what the button does.
-    // It still names --restore, because the reversal route is exactly the
-    // same one.
+    // The confirm() text names the destination; !REMOVE is named only
+    // when cards were marked red, with their own count. Both halves are
+    // reversed by the same --restore route.
     const selections = buildPlacementPayload(placementSuggestions());
     if (selections.length === 0) {
       document.getElementById("result").textContent = i18n("js_apply_no_placement");
@@ -299,7 +297,7 @@ document.getElementById("apply-all-btn").addEventListener("click", async () => {
     const summary = computePlacementSummary(placementSuggestions());
     if (!confirm(
       i18n("js_conf_move") + summary.fileCount + i18n("js_conf_files") + fmtSize(summary.bytes) +
-      ") z " + summary.groupCount + i18n("js_conf_sugg_all")
+      ") z " + summary.groupCount + i18n("js_conf_sugg_all") + placementRemoveConfirmTail(summary)
     )) {
       return;
     }
@@ -366,7 +364,7 @@ document.getElementById("apply-page-btn").addEventListener("click", async () => 
     const summary = computePlacementSummary(pageItems);
     if (!confirm(
       i18n("js_conf_move") + summary.fileCount + i18n("js_conf_files") + fmtSize(summary.bytes) +
-      ") z " + summary.groupCount + i18n("js_conf_sugg_page")
+      ") z " + summary.groupCount + i18n("js_conf_sugg_page") + placementRemoveConfirmTail(summary)
     )) {
       return;
     }

@@ -90,6 +90,8 @@ after sorting, and making backups before either action.
 >   all of them is rejected before anything moves. Rules:
 >   [business/rules/events-and-series.md](rules/events-and-series.md).
 > - **Grouping suggestion.** Moves files deeper into the archive, not into the trash.
+>   Only files the user explicitly marked red ("remove", or "Remove all") go to
+>   `!REMOVE`, as their own restorable batch.
 >   A name collision in the destination directory means two **different** photos with the same
 >   camera filename — byte-identical ones have already been removed earlier, because
 >   deduplication runs before organization.

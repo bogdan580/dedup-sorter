@@ -5,7 +5,9 @@ from typing import List, Mapping, Optional, Set, Tuple
 
 from tidy.moves import applier
 from tidy.duplicates.tiers import DuplicateGroup
-from tidy.duplicates.keeper import REASON_DUP_VISUAL, REASON_EVENT_SORT, Discard, KeeperDecision
+from tidy.duplicates.keeper import (
+    REASON_DUP_VISUAL, REASON_EVENT_REMOVE, REASON_EVENT_SORT, Discard, KeeperDecision,
+)
 
 
 # See: docs/technical/security.md
@@ -110,6 +112,7 @@ def _validate_placement_selections(
 
         group_id = selection.get("group_id")
         file_ids = selection.get("file_ids")
+        remove_ids = selection.get("remove_ids", [])
         dest_raw = selection.get("dest")
 
         if not isinstance(group_id, str) or not group_id:
@@ -120,21 +123,27 @@ def _validate_placement_selections(
 
         if not isinstance(file_ids, list) or not all(isinstance(f, str) for f in file_ids):
             return [], f"group {group_id!r}: file_ids must be a list of id strings"
-        if not file_ids:
+        if not isinstance(remove_ids, list) or not all(isinstance(r, str) for r in remove_ids):
+            return [], f"group {group_id!r}: remove_ids must be a list of id strings"
+        if not file_ids and not remove_ids:
             return [], f"group {group_id!r}: file_ids must not be empty"
-        if len(set(file_ids)) != len(file_ids):
+        all_ids = [*file_ids, *remove_ids]
+        if len(set(all_ids)) != len(all_ids):
             return [], f"group {group_id!r}: duplicate ids within selection"
 
-        dest_rel, dest_error = sanitize_dest_folder(dest_raw)
-        if dest_error is not None:
-            return [], f"group {group_id!r}: {dest_error}"
-
-        for file_id in file_ids:
+        for file_id in all_ids:
             entry = placement_registry.get(file_id)
             if entry is None:
                 return [], f"unknown id: {file_id!r}"
             if entry["group_id"] != group_id:
                 return [], f"id {file_id!r} does not belong to group {group_id!r}"
+
+        # A removal-only selection moves nothing, so it needs no destination.
+        if not file_ids:
+            continue
+        dest_rel, dest_error = sanitize_dest_folder(dest_raw)
+        if dest_error is not None:
+            return [], f"group {group_id!r}: {dest_error}"
 
         dest_abs = _join_path(archive_root, dest_rel.replace("\\", "/"))
         for file_id in file_ids:
@@ -148,6 +157,33 @@ def _validate_placement_selections(
             ))
 
     return plans, None
+
+
+def _placement_removals(
+    selections: list,
+    placement_registry: Mapping[str, dict],
+) -> Tuple[List[DuplicateGroup], List[KeeperDecision]]:
+    """The `remove_ids` half of selections already accepted by
+    _validate_placement_selections(), as apply_batch() input (op=remove,
+    keeper left empty: nothing in the group is kept on its behalf).
+    See: docs/business/rules/events-and-series.md"""
+    groups: List[DuplicateGroup] = []
+    decisions: List[KeeperDecision] = []
+    for selection in selections:
+        remove_ids = selection.get("remove_ids") or []
+        if not remove_ids:
+            continue
+        discarded = tuple(
+            Discard(
+                path=placement_registry[rid]["path"],
+                reason=REASON_EVENT_REMOVE,
+                size=placement_registry[rid]["size"],
+            )
+            for rid in remove_ids
+        )
+        groups.append(DuplicateGroup(size=0, full_hash="", paths=tuple(d.path for d in discarded)))
+        decisions.append(KeeperDecision(keeper="", discarded=discarded))
+    return groups, decisions
 
 
 # See: docs/technical/security.md

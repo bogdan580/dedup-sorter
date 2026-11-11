@@ -40,7 +40,7 @@ A tool for organizing a large photo and video archive that has grown over years.
 
 **Command line** executes operations on exact duplicates (`--apply`, `--restore`) and compression (`--compress --apply`), and **plans** the rest: `--series`, `--events`, and `--inbox` generate a report for review, but do not move or delete any file.
 
-**Review UI** (`--review`) is the decision center. Exact duplicates and series can be applied from it (files move to `!REMOVE`), grouping suggestions move files deeper into the archive, and compression creates new files alongside originals. Series and events cannot be assessed reasonably from a CSV table — thumbnails are necessary.
+**Review UI** (`--review`) is the decision center. Exact duplicates and series can be applied from it (files move to `!REMOVE`), grouping suggestions move files deeper into the archive (cards marked red go to `!REMOVE`), and compression creates new files alongside originals. Series and events cannot be assessed reasonably from a CSV table — thumbnails are necessary.
 
 ## What This Tool Does Not Do
 

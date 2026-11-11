@@ -59,7 +59,7 @@ The command line generates a single HTML report with three sections and **does n
 any file**. Execution takes place in the review UI:
 
 - duplicates and series → to the trash,
-- grouping suggestions → deeper into the archive, rules
+- grouping suggestions → deeper into the archive (cards marked red → to the trash), rules
   in [business/rules/version-selection.md](version-selection.md).
 
 

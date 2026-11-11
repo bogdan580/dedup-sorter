@@ -57,8 +57,8 @@ const state = {
   // from `selection` above because a series group can keep more than one
   // file, so the shape is genuinely different.
   seriesSelection: {},
-  // Per-suggestion placement selection: {fileIds: Set<fileId>, dest: string,
-  // skip: bool}. `dest` lives in the selection rather than being read off
+  // Per-suggestion placement selection: {fileIds: Set<fileId> (blue, move),
+  // removeIds: Set<fileId> (red, !REMOVE), dest: string, skip: bool}. `dest` lives in the selection rather than being read off
   // the DOM at submit time: the placement tab re-renders on every poll tick
   // while a directory is still computing, and the user's edit must survive.
   placementSelection: {},
@@ -336,8 +336,9 @@ function updateSummary() {
     return;
   }
   if (state.tab === "placement") {
-    const { fileCount, bytes, groupCount } = computePlacementSummary(placementSuggestions());
-    summaryEl.textContent = groupCount + i18n("js_summary_sugg") + fileCount + i18n("js_summary_move") + fmtSize(bytes);
+    const { fileCount, bytes, groupCount, removeCount, removeBytes } = computePlacementSummary(placementSuggestions());
+    summaryEl.textContent = groupCount + i18n("js_summary_sugg") + fileCount + i18n("js_summary_move") + fmtSize(bytes) +
+      (removeCount > 0 ? "; " + removeCount + i18n("js_summary_del") + fmtSize(removeBytes) : "");
     return;
   }
   const groups = state.data ? state.data.groups : [];
