@@ -23,7 +23,7 @@ If you find a bug, please open an Issue in the repository. Describe:
 3. **Conventions:** Code must adhere to the rules described in [tests and conventions](docs/technical/development/conventions-and-tests.md). 
    - You are required to write tests without touching the real file system (we use the in-memory `FakeFileSystem` from `tests/fakes.py`).
    - We keep the code extremely clean: complex business decisions and "why it's done this way" are documented inside the `docs/` folder. In the code, we only leave short anchors, e.g., `# See: docs/business/rules/compression.md`.
-   - **Language:** documentation (`docs/`), code comments, console output and commit messages are all in English. Only the review UI is localized (English, Polish, Ukrainian) in `tidy/review/locales.py`.
+   - **Language:** documentation (`docs/`), code comments, console output and commit messages are all in English. The only localized surfaces are the README translations (`README.pl.md`, `README.uk.md`) and the review UI (English, Polish, Ukrainian) in `tidy/review/locales.py`; keep them in sync with every change.
 
 ## Creating a Pull Request
 
